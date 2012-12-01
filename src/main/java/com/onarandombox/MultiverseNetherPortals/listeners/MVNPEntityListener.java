@@ -1,6 +1,5 @@
 package com.onarandombox.MultiverseNetherPortals.listeners;
 
-import com.onarandombox.MultiverseCore.MultiverseCore;
 import com.onarandombox.MultiverseCore.api.LocationManipulation;
 import com.onarandombox.MultiverseCore.api.MVWorldManager;
 import com.onarandombox.MultiverseCore.api.MultiverseMessaging;
@@ -57,6 +56,10 @@ public class MVNPEntityListener implements Listener {
     }
 
     protected void shootPlayer(Player p, Block block, PortalType type) {
+        if (!plugin.isUsingBounceBack()) {
+            this.plugin.log(Level.FINEST, "You said not to use bounce back so the player is free to walk into portal!");
+            return;
+        }
         this.playerErrors.put(p.getName(), new Date());
         double myconst = 2;
         double newVecX = 0;
@@ -139,14 +142,33 @@ public class MVNPEntityListener implements Listener {
         if (linkedWorld != null) {
             toLocation = this.linkChecker.findNewTeleportLocation(currentLocation, linkedWorld, p);
         } else if (this.nameChecker.isValidNetherName(currentWorld)) {
-            toLocation = this.linkChecker.findNewTeleportLocation(currentLocation, this.nameChecker.getNormalName(currentWorld), p);
+            if (type == PortalType.NETHER) {
+                toLocation = this.linkChecker.findNewTeleportLocation(currentLocation, this.nameChecker.getNormalName(currentWorld, PortalType.NETHER), p);
+            } else {
+                toLocation = this.linkChecker.findNewTeleportLocation(currentLocation, this.nameChecker.getEndName(this.nameChecker.getNormalName(currentWorld, PortalType.NETHER)), p);
+            }
+        } else if (this.nameChecker.isValidEndName(currentWorld)) {
+            if (type == PortalType.NETHER) {
+                toLocation = this.linkChecker.findNewTeleportLocation(currentLocation, this.nameChecker.getNetherName(this.nameChecker.getNormalName(currentWorld, PortalType.END)), p);
+            } else {
+                toLocation = this.linkChecker.findNewTeleportLocation(currentLocation, this.nameChecker.getNormalName(currentWorld, PortalType.END), p);
+            }
         } else {
-            toLocation = this.linkChecker.findNewTeleportLocation(currentLocation, this.nameChecker.getNetherName(currentWorld), p);
+            if(type == PortalType.END) {
+                toLocation = this.linkChecker.findNewTeleportLocation(currentLocation, this.nameChecker.getEndName(currentWorld), p);
+            } else {
+                toLocation = this.linkChecker.findNewTeleportLocation(currentLocation, this.nameChecker.getNetherName(currentWorld), p);
+            }
         }
 
         if (toLocation == null) {
             this.shootPlayer(p, eventLocation.getBlock(), type);
             this.messaging.sendMessage(p, "This portal goes nowhere!", false);
+            if (type == PortalType.END) {
+                this.messaging.sendMessage(p, "No specific end world has been linked to this world and '" + this.nameChecker.getEndName(currentWorld) + "' is not a world.", true);
+            } else {
+                this.messaging.sendMessage(p, "No specific nether world has been linked to this world and '" + this.nameChecker.getNetherName(currentWorld) + "' is not a world.", true);
+            }
             return;
         }
         MultiverseWorld fromWorld = this.worldManager.getMVWorld(p.getLocation().getWorld().getName());
